@@ -457,17 +457,17 @@
                 <div class="flex items-end space-x-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-300">Tipo de Relatório</label>
-                        <select class="input-form mt-1">
+                        <select id="relatorios-tipo" class="input-form mt-1">
                             <option>Resumo Mensal</option>
                             <option>Detalhado Diário</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-300">Mês</label>
-                        <input type="month" class="input-form mt-1">
+                        <input type="month" id="relatorios-mes" class="input-form mt-1">
                     </div>
-                    <button class="btn-primary h-12">Gerar PDF</button>
-                    <button class="btn-secondary h-12">Gerar CSV</button>
+                    <button id="btn-gerar-pdf" class="btn-primary h-12">Gerar PDF</button>
+                    <button id="btn-gerar-csv" class="btn-secondary h-12">Gerar CSV</button>
                 </div>
             </div>
         </section>
@@ -526,5 +526,6 @@
     <script src="MiniEstacaoEnergia_Dashboard/js/historico.js"></script>
     <script src="MiniEstacaoEnergia_Dashboard/js/simulacao.js"></script>
     <script src="MiniEstacaoEnergia_Dashboard/js/custos.js"></script>
+    <script src="MiniEstacaoEnergia_Dashboard/js/relatorios.js"></script>
 </body>
 </html>
