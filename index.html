@@ -387,7 +387,7 @@
             <h2 class="text-3xl font-bold text-white mb-8">Simulação de Consumo</h2>
             <div class="bg-gray-800 rounded-2xl shadow-lg p-6">
                 <h3 class="text-xl font-semibold text-white mb-4">Calculadora de Projeção</h3>
-                <p class="text-gray-400 mb-6">Preencha os campos abaixo para simular o custo mensal (30 dias) de uso.</p>
+                <p class="text-gray-400 mb-6">A potência é atualizada em tempo real. Insira as horas de uso diário para simular o custo mensal (30 dias).</p>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     
@@ -397,40 +397,55 @@
                             <input type="number" step="0.01" id="sim-tarifa" class="input-form mt-1" placeholder="0.92">
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-2 gap-4 p-4 bg-gray-700/50 rounded-lg">
                             <div>
-                                <label for="sim-potencia-1" class="block text-sm font-medium text-gray-300">Potência Carga 1 (W)</label>
-                                <input type="number" id="sim-potencia-1" class="input-form mt-1" placeholder="60">
+                                <label class="block text-sm font-medium text-gray-300">Potência Carga 1 (W)</label>
+                                <div class="mt-1">
+                                    <span id="sim-live-potencia-1" class="text-2xl font-bold text-white">0</span>
+                                    <span class="text-gray-400 ml-1 text-sm">W</span>
+                                </div>
                             </div>
                             <div>
                                 <label for="sim-horas-1" class="block text-sm font-medium text-gray-300">Horas/dia Carga 1</label>
-                                <input type="number" id="sim-horas-1" class="input-form mt-1" placeholder="4">
+                                <input type="number" id="sim-horas-1" class="input-form mt-1" placeholder="0">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+                        
+                        <div class="grid grid-cols-2 gap-4 p-4 bg-gray-700/50 rounded-lg">
                             <div>
-                                <label for="sim-potencia-2" class="block text-sm font-medium text-gray-300">Potência Carga 2 (W)</label>
-                                <input type="number" id="sim-potencia-2" class="input-form mt-1" placeholder="1000">
+                                <label class="block text-sm font-medium text-gray-300">Potência Carga 2 (W)</label>
+                                <div class="mt-1">
+                                    <span id="sim-live-potencia-2" class="text-2xl font-bold text-white">0</span>
+                                    <span class="text-gray-400 ml-1 text-sm">W</span>
+                                </div>
                             </div>
                             <div>
                                 <label for="sim-horas-2" class="block text-sm font-medium text-gray-300">Horas/dia Carga 2</label>
-                                <input type="number" id="sim-horas-2" class="input-form mt-1" placeholder="1">
+                                <input type="number" id="sim-horas-2" class="input-form mt-1" placeholder="0">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+
+                        <div class="grid grid-cols-2 gap-4 p-4 bg-gray-700/50 rounded-lg">
                             <div>
-                                <label for="sim-potencia-3" class="block text-sm font-medium text-gray-300">Potência Carga 3 (W)</label>
-                                <input type="number" id="sim-potencia-3" class="input-form mt-1" placeholder="150">
+                                <label class="block text-sm font-medium text-gray-300">Potência Carga 3 (W)</label>
+                                <div class="mt-1">
+                                    <span id="sim-live-potencia-3" class="text-2xl font-bold text-white">0</span>
+                                    <span class="text-gray-400 ml-1 text-sm">W</span>
+                                </div>
                             </div>
                             <div>
                                 <label for="sim-horas-3" class="block text-sm font-medium text-gray-300">Horas/dia Carga 3</label>
-                                <input type="number" id="sim-horas-3" class="input-form mt-1" placeholder="2">
+                                <input type="number" id="sim-horas-3" class="input-form mt-1" placeholder="0">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+
+                        <div class="grid grid-cols-2 gap-4 p-4 bg-gray-700/50 rounded-lg">
                             <div>
-                                <label for="sim-potencia-4" class="block text-sm font-medium text-gray-300">Potência Carga 4 (W)</label>
-                                <input type="number" id="sim-potencia-4" class="input-form mt-1" placeholder="0">
+                                <label class="block text-sm font-medium text-gray-300">Potência Carga 4 (W)</label>
+                                <div class="mt-1">
+                                    <span id="sim-live-potencia-4" class="text-2xl font-bold text-white">0</span>
+                                    <span class="text-gray-400 ml-1 text-sm">W</span>
+                                </div>
                             </div>
                             <div>
                                 <label for="sim-horas-4" class="block text-sm font-medium text-gray-300">Horas/dia Carga 4</label>
