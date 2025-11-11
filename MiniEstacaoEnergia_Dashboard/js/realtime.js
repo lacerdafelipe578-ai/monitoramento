@@ -24,6 +24,7 @@
     
     let db;
     try {
+        // Inicializa o Firebase (só pode ser chamado uma vez)
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
@@ -31,7 +32,7 @@
         console.log("Firebase (realtime.js) inicializado com sucesso!");
     } catch (e) {
         console.error("Erro ao inicializar o Firebase:", e);
-        if (db) { 
+        if (db) { // Se já foi inicializado, apenas pegue a instância
              db = firebase.firestore();
         } else {
             updateConnectionStatus(false);
