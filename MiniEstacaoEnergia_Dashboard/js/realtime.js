@@ -2,7 +2,7 @@
  * js/realtime.js
  *
  * Controlador da Aba "Tempo Real".
- * (Versão atualizada: agora também atualiza os campos de potência na Aba Simulação)
+ * (Versão final com correção do toggle e atualização da simulação)
  */
 
 (function () {
@@ -24,7 +24,6 @@
     
     let db;
     try {
-        // Inicializa o Firebase (só pode ser chamado uma vez)
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
@@ -32,7 +31,7 @@
         console.log("Firebase (realtime.js) inicializado com sucesso!");
     } catch (e) {
         console.error("Erro ao inicializar o Firebase:", e);
-        if (db) { // Se já foi inicializado, apenas pegue a instância
+        if (db) { 
              db = firebase.firestore();
         } else {
             updateConnectionStatus(false);
@@ -47,24 +46,17 @@
     
     let tarifaKWh = TARIFA_PADRAO_KWH;
     let limiteSobrecargaW = LIMITE_SOBRECARGA_W_PADRAO;
-    // (NOVO) Array para guardar os nomes das cargas
     let nomesCargas = ["Carga 1", "Carga 2", "Carga 3", "Carga 4", "Carga 5"];
 
-    // --- 4. Seletores de Elementos da UI (Aba Tempo Real) ---
+    // --- 4. Seletores de Elementos da UI ---
     const statusIndicator = document.getElementById('status-indicator');
     const statusText = document.getElementById('status-text');
-
-    // ... (KPIs Globais) ...
     const potenciaTotalValor = document.getElementById('potencia-total-valor');
     const custoHoraValor = document.getElementById('custo-hora-valor');
     const custoDiaValor = document.getElementById('custo-dia-valor');
     const tensaoRedeValor = document.getElementById('tensao-rede-valor');
-
-    // ... (Gráfico) ...
     const potenciaGraficoValor = document.getElementById('potencia-grafico-valor');
     const potenciaGraficoVariacao = document.getElementById('potencia-grafico-variacao');
-    
-    // ... (Aba Configurações) ...
     const configTarifaKwh = document.getElementById('config-tarifa-kwh');
     const configLimiteW = document.getElementById('config-limite-w');
     const btnSaveAllSettings = document.getElementById('btn-save-all-settings');
@@ -74,8 +66,6 @@
         document.getElementById('config-nome-3'),
         document.getElementById('config-nome-4')
     ];
-
-    // (NOVO) Seletores dos campos de potência na Aba Simulação
     const simLivePotencia = [
         document.getElementById('sim-live-potencia-1'),
         document.getElementById('sim-live-potencia-2'),
@@ -86,13 +76,10 @@
     // --- 5. Variáveis de Estado e Gráfico ---
     let powerChart = null;
     let ultimoValorPotencia = null;
-    const MAX_CHART_POINTS = 60; // Mostrar 60 segundos no gráfico
+    const MAX_CHART_POINTS = 60; 
 
     // --- 6. Funções Principais ---
 
-    /**
-     * Ouve o documento "live" no Firestore para dados em tempo real.
-     */
     function conectarFirebase() {
         console.log("Conectando ao Firestore para dados ao vivo...");
         
@@ -113,14 +100,10 @@
             });
     }
 
-    /**
-     * Processa dados gerais (potência, tensão, etc.)
-     */
     function handleGeraisData(data) {
         if (potenciaTotalValor) potenciaTotalValor.textContent = data.potencia_total.toFixed(0);
         if (tensaoRedeValor) tensaoRedeValor.textContent = data.tensao.toFixed(1);
         
-        // Cálculo de Custo Instantâneo (Projeção)
         const potenciaEmKW = data.potencia_total / 1000.0;
         const custoPorHora = potenciaEmKW * tarifaKWh;
         const custoPorDia = custoPorHora * 24;
@@ -128,7 +111,6 @@
         if (custoHoraValor) custoHoraValor.textContent = custoPorHora.toFixed(2).replace('.', ',');
         if (custoDiaValor) custoDiaValor.textContent = custoPorDia.toFixed(2).replace('.', ',');
 
-        // Alerta de Sobrecarga
         const kpiPotenciaCard = potenciaTotalValor.closest('.bg-gray-800');
         if (data.potencia_total > limiteSobrecargaW) {
             kpiPotenciaCard.classList.add('bg-red-800', 'animate-pulse');
@@ -136,87 +118,73 @@
             kpiPotenciaCard.classList.remove('bg-red-800', 'animate-pulse');
         }
         
-        // Atualiza o KPI do Gráfico
         if (potenciaGraficoValor) potenciaGraficoValor.textContent = data.potencia_total.toFixed(0);
         updateVariacao(data.potencia_total);
         updateChart(data.potencia_total);
     }
     
-    /**
-     * Processa dados dos relés (status, consumo individual)
-     */
     function handleRelesData(relesData) {
         if (!Array.isArray(relesData)) return;
 
         relesData.forEach(rele => {
-            const releIndex = rele.rele - 1; // Converte ID (1-5) para índice (0-4)
+            const releIndex = rele.rele - 1; 
             const statusBadge = document.getElementById(`status-rele-${rele.rele}`);
             const consumoValor = document.getElementById(`consumo-rele-${rele.rele}`);
             const toggle = document.getElementById(`toggle-rele-${rele.rele}`);
             const correnteValor = document.getElementById(`corrente-rele-${rele.rele}`);
             const card = statusBadge ? statusBadge.closest('.bg-gray-800') : null;
-            
-            // Seleciona o Título (h3) do card
             const cardTitle = card ? card.querySelector('h3') : null; 
 
-            // Atualiza o título do card com o nome salvo
             if (cardTitle) {
-                // Usa o nome salvo (ex: "Lâmpada") ou o padrão (ex: "Carga 1")
                 cardTitle.textContent = nomesCargas[releIndex] || `Carga ${rele.rele}`;
             }
 
-            // Atualiza o Status (ON / OFF / Standby)
             if (statusBadge && card) {
                 if (rele.status === 'ON') {
-                    // Checa por Standby
                     if (rele.consumo > 0 && rele.consumo <= LIMITE_STANDBY_W) {
                         statusBadge.textContent = 'STANDBY';
                         statusBadge.className = 'mb-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-700/50 text-yellow-300';
-                        card.style.borderColor = 'var(--brand-cyan-light)'; // Amarelo
+                        card.style.borderColor = 'var(--brand-cyan-light)';
                     } else {
                         statusBadge.textContent = 'ON';
                         statusBadge.className = 'mb-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-700/50 text-green-300';
-                        card.style.borderColor = 'var(--brand-lime)'; // Verde-Limão
+                        card.style.borderColor = 'var(--brand-lime)';
                     }
                 } else {
                     statusBadge.textContent = 'OFF';
                     statusBadge.className = 'mb-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-700/50 text-red-300';
-                    card.style.borderColor = 'transparent'; // Cor padrão
+                    card.style.borderColor = 'transparent';
                 }
             }
 
-            // Atualiza Consumo e Corrente
             if (consumoValor) consumoValor.textContent = rele.consumo.toFixed(0);
             if (correnteValor) correnteValor.textContent = rele.corrente.toFixed(2).replace('.', ',');
 
-            // (NOVO) Atualiza o campo de potência na aba de Simulação
             if (releIndex < simLivePotencia.length && simLivePotencia[releIndex]) {
                 simLivePotencia[releIndex].textContent = rele.consumo.toFixed(0);
             }
 
-            // Sincroniza o Toggle (Interruptor)
             if (toggle) {
                 toggle.removeEventListener('change', handleToggleChange);
                 toggle.checked = (rele.status === 'ON');
-                toggle.disabled = false; // <-- Correção do bug do toggle travado
+                
+                // --- ESTA É A CORREÇÃO PARA O BUG DO BOTÃO ---
+                toggle.disabled = false; 
+                // ---------------------------------------------
+                
                 toggle.addEventListener('change', handleToggleChange);
             }
         });
     }
 
-    /**
-     * Handler para o clique no interruptor.
-     */
     function handleToggleChange(event) {
         const releIndex = event.target.dataset.releIndex;
         const newState = event.target.checked ? 'ON' : 'OFF';
         
-        event.target.disabled = true; // Desabilita até a resposta voltar
+        event.target.disabled = true; 
 
         console.log(`Enviando comando para Relé ${releIndex}: ${newState}`);
         
-        // O "Coletor" Node.js estará ouvindo essa coleção 'comandos'
-        // e será responsável por publicar no MQTT para o ESP32.
         db.collection('comandos').add({
             rele: releIndex,
             comando: newState,
@@ -224,17 +192,12 @@
         })
         .catch((error) => {
             console.error("Erro ao enviar comando: ", error);
-            // Reverte o clique e re-habilita se falhar
             event.target.checked = !event.target.checked;
             event.target.disabled = false;
         });
     }
     
-    /**
-     * Funções da Aba de Configurações (ATUALIZADAS)
-     */
     function carregarConfiguracoes() {
-        // Tenta ler as configs salvas no navegador
         const tarifaSalva = localStorage.getItem('tarifaKWh');
         const limiteSalvo = localStorage.getItem('limiteSobrecargaW');
         const nomesSalvos = localStorage.getItem('nomesCargas');
@@ -242,44 +205,39 @@
         if (tarifaSalva) tarifaKWh = parseFloat(tarifaSalva);
         if (limiteSalvo) limiteSobrecargaW = parseFloat(limiteSalvo);
         
-        // Carrega os nomes
         if (nomesSalvos) {
             nomesCargas = JSON.parse(nomesSalvos);
         }
         
-        // Preenche os campos da aba de Configurações
-        configTarifaKwh.value = tarifaKWh;
-        configLimiteW.value = limiteSobrecargaW;
-        configNomeInputs.forEach((input, index) => {
-            input.value = nomesCargas[index] || '';
-        });
+        if(configTarifaKwh) configTarifaKwh.value = tarifaKWh;
+        if(configLimiteW) configLimiteW.value = limiteSobrecargaW;
+        if(configNomeInputs[0]) {
+            configNomeInputs.forEach((input, index) => {
+                if(input) input.value = nomesCargas[index] || '';
+            });
+        }
     }
 
     function salvarConfiguracoes() {
         console.log("Salvando configurações...");
         
-        // Salva Tarifa e Limite
         tarifaKWh = parseFloat(configTarifaKwh.value) || TARIFA_PADRAO_KWH;
         limiteSobrecargaW = parseFloat(configLimiteW.value) || LIMITE_SOBRECARGA_W_PADRAO;
 
         localStorage.setItem('tarifaKWh', tarifaKWh);
         localStorage.setItem('limiteSobrecargaW', limiteSobrecargaW);
 
-        // Salva os Nomes
         nomesCargas = configNomeInputs.map(input => input.value || '');
         localStorage.setItem('nomesCargas', JSON.stringify(nomesCargas));
         
         alert("Configurações salvas com sucesso!");
         
-        // Força a atualização dos nomes dos cards na aba Tempo Real
-        // (Simulando recebimento de dados)
         db.collection('status_atual').doc('live').get().then(doc => {
             if (doc.exists && doc.data().reles) {
                 handleRelesData(doc.data().reles);
             }
         });
         
-        // Volta para a tela principal
         document.querySelector('.nav-link[data-page="page-realtime"]').click();
     }
 
@@ -303,7 +261,7 @@
     
     function inicializarChart() {
         const ctx = document.getElementById('power-chart');
-        if (!ctx) return; // Não tenta criar o gráfico se o canvas não existir
+        if (!ctx) return; 
 
         powerChart = new Chart(ctx, {
             type: 'line',
@@ -348,7 +306,7 @@
     }
 
     function updateVariacao(novoValor) {
-        if (!potenciaGraficoVariacao) return; // Garante que o elemento exista
+        if (!potenciaGraficoVariacao) return; 
         if (ultimoValorPotencia === null || novoValor === ultimoValorPotencia || ultimoValorPotencia === 0) {
             if (ultimoValorPotencia === null) {
                 potenciaGraficoVariacao.innerHTML = `<span class="material-symbols-outlined text-sm mr-1">horizontal_rule</span><span class="text-sm font-medium">--%</span>`;
@@ -385,12 +343,11 @@
     }
 
     // --- 8. Inicialização do Script ---
-    carregarConfiguracoes(); // Carrega os nomes e tarifas salvos
+    carregarConfiguracoes(); 
     conectarFirebase();
     inicializarChart();
     inicializarToggles();
     
-    // Listeners do Modal
     if(btnSaveAllSettings) {
         btnSaveAllSettings.addEventListener('click', salvarConfiguracoes);
     }
