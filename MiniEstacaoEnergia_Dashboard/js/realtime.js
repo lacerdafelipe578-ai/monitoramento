@@ -2,7 +2,7 @@
  * js/realtime.js
  *
  * Controlador da Aba "Tempo Real".
- * (Versão atualizada com Nomes das Cargas)
+ * (Versão atualizada: agora também atualiza os campos de potência na Aba Simulação)
  */
 
 (function () {
@@ -24,13 +24,20 @@
     
     let db;
     try {
-        firebase.initializeApp(firebaseConfig);
+        // Inicializa o Firebase (só pode ser chamado uma vez)
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         db = firebase.firestore();
         console.log("Firebase (realtime.js) inicializado com sucesso!");
     } catch (e) {
         console.error("Erro ao inicializar o Firebase:", e);
-        updateConnectionStatus(false);
-        return;
+        if (db) { // Se já foi inicializado, apenas pegue a instância
+             db = firebase.firestore();
+        } else {
+            updateConnectionStatus(false);
+            return;
+        }
     }
 
     // --- 3. Constantes do Sistema ---
@@ -47,24 +54,33 @@
     const statusIndicator = document.getElementById('status-indicator');
     const statusText = document.getElementById('status-text');
 
+    // ... (KPIs Globais) ...
     const potenciaTotalValor = document.getElementById('potencia-total-valor');
     const custoHoraValor = document.getElementById('custo-hora-valor');
     const custoDiaValor = document.getElementById('custo-dia-valor');
     const tensaoRedeValor = document.getElementById('tensao-rede-valor');
 
+    // ... (Gráfico) ...
     const potenciaGraficoValor = document.getElementById('potencia-grafico-valor');
     const potenciaGraficoVariacao = document.getElementById('potencia-grafico-variacao');
     
-    // --- Seletores da Aba Configurações (são controlados daqui) ---
+    // ... (Aba Configurações) ...
     const configTarifaKwh = document.getElementById('config-tarifa-kwh');
     const configLimiteW = document.getElementById('config-limite-w');
     const btnSaveAllSettings = document.getElementById('btn-save-all-settings');
-    // (NOVOS) Inputs de Nomes
     const configNomeInputs = [
         document.getElementById('config-nome-1'),
         document.getElementById('config-nome-2'),
         document.getElementById('config-nome-3'),
         document.getElementById('config-nome-4')
+    ];
+
+    // (NOVO) Seletores dos campos de potência na Aba Simulação
+    const simLivePotencia = [
+        document.getElementById('sim-live-potencia-1'),
+        document.getElementById('sim-live-potencia-2'),
+        document.getElementById('sim-live-potencia-3'),
+        document.getElementById('sim-live-potencia-4')
     ];
 
     // --- 5. Variáveis de Estado e Gráfico ---
@@ -104,6 +120,7 @@
         if (potenciaTotalValor) potenciaTotalValor.textContent = data.potencia_total.toFixed(0);
         if (tensaoRedeValor) tensaoRedeValor.textContent = data.tensao.toFixed(1);
         
+        // Cálculo de Custo Instantâneo (Projeção)
         const potenciaEmKW = data.potencia_total / 1000.0;
         const custoPorHora = potenciaEmKW * tarifaKWh;
         const custoPorDia = custoPorHora * 24;
@@ -111,6 +128,7 @@
         if (custoHoraValor) custoHoraValor.textContent = custoPorHora.toFixed(2).replace('.', ',');
         if (custoDiaValor) custoDiaValor.textContent = custoPorDia.toFixed(2).replace('.', ',');
 
+        // Alerta de Sobrecarga
         const kpiPotenciaCard = potenciaTotalValor.closest('.bg-gray-800');
         if (data.potencia_total > limiteSobrecargaW) {
             kpiPotenciaCard.classList.add('bg-red-800', 'animate-pulse');
@@ -118,6 +136,7 @@
             kpiPotenciaCard.classList.remove('bg-red-800', 'animate-pulse');
         }
         
+        // Atualiza o KPI do Gráfico
         if (potenciaGraficoValor) potenciaGraficoValor.textContent = data.potencia_total.toFixed(0);
         updateVariacao(data.potencia_total);
         updateChart(data.potencia_total);
@@ -137,10 +156,10 @@
             const correnteValor = document.getElementById(`corrente-rele-${rele.rele}`);
             const card = statusBadge ? statusBadge.closest('.bg-gray-800') : null;
             
-            // (NOVO) Seleciona o Título (h3) do card
+            // Seleciona o Título (h3) do card
             const cardTitle = card ? card.querySelector('h3') : null; 
 
-            // (NOVO) Atualiza o título do card com o nome salvo
+            // Atualiza o título do card com o nome salvo
             if (cardTitle) {
                 // Usa o nome salvo (ex: "Lâmpada") ou o padrão (ex: "Carga 1")
                 cardTitle.textContent = nomesCargas[releIndex] || `Carga ${rele.rele}`;
@@ -149,25 +168,33 @@
             // Atualiza o Status (ON / OFF / Standby)
             if (statusBadge && card) {
                 if (rele.status === 'ON') {
+                    // Checa por Standby
                     if (rele.consumo > 0 && rele.consumo <= LIMITE_STANDBY_W) {
                         statusBadge.textContent = 'STANDBY';
                         statusBadge.className = 'mb-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-700/50 text-yellow-300';
-                        card.style.borderColor = 'var(--brand-cyan-light)';
+                        card.style.borderColor = 'var(--brand-cyan-light)'; // Amarelo
                     } else {
                         statusBadge.textContent = 'ON';
                         statusBadge.className = 'mb-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-700/50 text-green-300';
-                        card.style.borderColor = 'var(--brand-lime)';
+                        card.style.borderColor = 'var(--brand-lime)'; // Verde-Limão
                     }
                 } else {
                     statusBadge.textContent = 'OFF';
                     statusBadge.className = 'mb-4 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-700/50 text-red-300';
-                    card.style.borderColor = 'transparent';
+                    card.style.borderColor = 'transparent'; // Cor padrão
                 }
             }
 
+            // Atualiza Consumo e Corrente
             if (consumoValor) consumoValor.textContent = rele.consumo.toFixed(0);
             if (correnteValor) correnteValor.textContent = rele.corrente.toFixed(2).replace('.', ',');
 
+            // (NOVO) Atualiza o campo de potência na aba de Simulação
+            if (releIndex < simLivePotencia.length && simLivePotencia[releIndex]) {
+                simLivePotencia[releIndex].textContent = rele.consumo.toFixed(0);
+            }
+
+            // Sincroniza o Toggle (Interruptor)
             if (toggle) {
                 toggle.removeEventListener('change', handleToggleChange);
                 toggle.checked = (rele.status === 'ON');
@@ -188,6 +215,8 @@
 
         console.log(`Enviando comando para Relé ${releIndex}: ${newState}`);
         
+        // O "Coletor" Node.js estará ouvindo essa coleção 'comandos'
+        // e será responsável por publicar no MQTT para o ESP32.
         db.collection('comandos').add({
             rele: releIndex,
             comando: newState,
@@ -195,6 +224,7 @@
         })
         .catch((error) => {
             console.error("Erro ao enviar comando: ", error);
+            // Reverte o clique e re-habilita se falhar
             event.target.checked = !event.target.checked;
             event.target.disabled = false;
         });
@@ -212,7 +242,7 @@
         if (tarifaSalva) tarifaKWh = parseFloat(tarifaSalva);
         if (limiteSalvo) limiteSobrecargaW = parseFloat(limiteSalvo);
         
-        // (NOVO) Carrega os nomes
+        // Carrega os nomes
         if (nomesSalvos) {
             nomesCargas = JSON.parse(nomesSalvos);
         }
@@ -235,7 +265,7 @@
         localStorage.setItem('tarifaKWh', tarifaKWh);
         localStorage.setItem('limiteSobrecargaW', limiteSobrecargaW);
 
-        // (NOVO) Salva os Nomes
+        // Salva os Nomes
         nomesCargas = configNomeInputs.map(input => input.value || '');
         localStorage.setItem('nomesCargas', JSON.stringify(nomesCargas));
         
@@ -253,7 +283,7 @@
         document.querySelector('.nav-link[data-page="page-realtime"]').click();
     }
 
-    // --- 7. Inicialização de Funções Auxiliares (Gráfico, Toggles, etc.) ---
+    // --- 7. Funções Auxiliares (Gráfico, Toggles, etc.) ---
     
     function updateConnectionStatus(isConnected) {
         if (isConnected) {
@@ -273,7 +303,7 @@
     
     function inicializarChart() {
         const ctx = document.getElementById('power-chart');
-        if (!ctx) return;
+        if (!ctx) return; // Não tenta criar o gráfico se o canvas não existir
 
         powerChart = new Chart(ctx, {
             type: 'line',
@@ -318,6 +348,7 @@
     }
 
     function updateVariacao(novoValor) {
+        if (!potenciaGraficoVariacao) return; // Garante que o elemento exista
         if (ultimoValorPotencia === null || novoValor === ultimoValorPotencia || ultimoValorPotencia === 0) {
             if (ultimoValorPotencia === null) {
                 potenciaGraficoVariacao.innerHTML = `<span class="material-symbols-outlined text-sm mr-1">horizontal_rule</span><span class="text-sm font-medium">--%</span>`;
@@ -360,6 +391,8 @@
     inicializarToggles();
     
     // Listeners do Modal
-    btnSaveAllSettings.addEventListener('click', salvarConfiguracoes);
+    if(btnSaveAllSettings) {
+        btnSaveAllSettings.addEventListener('click', salvarConfiguracoes);
+    }
 
 })();
