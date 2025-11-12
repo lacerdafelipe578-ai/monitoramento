@@ -1,10 +1,20 @@
 /**
  * js/realtime.js
  *
- * (v3 - Corrigido o bug do botão travado com hardware offline)
+ * (v4 - Adiciona ?mode=guest para visitantes)
  */
 
 (function () {
+
+    // --- (NOVO) LÓGICA DE PERMISSÃO ---
+    // Verifica se a URL contém "?mode=guest"
+    const urlParams = new URLSearchParams(window.location.search);
+    const IS_GUEST_MODE = urlParams.get('mode') === 'guest';
+
+    if (IS_GUEST_MODE) {
+        console.warn("Modo Visitante ATIVADO. Os controlos estão desativados.");
+    }
+    // ------------------------------------
 
     // --- 1. Configurações e Constantes ---
     
@@ -38,7 +48,6 @@
         }
     }
 
-    // ... (As Seções 3, 4, 5 são idênticas, pode mantê-las) ...
     // --- 3. Constantes do Sistema ---
     const LIMITE_STANDBY_W = 5;
     const LIMITE_SOBRECARGA_W_PADRAO = 1500;
@@ -46,7 +55,9 @@
     let tarifaKWh = TARIFA_PADRAO_KWH;
     let limiteSobrecargaW = LIMITE_SOBRECARGA_W_PADRAO;
     let nomesCargas = ["Carga 1", "Carga 2", "Carga 3", "Carga 4", "Carga 5"];
+
     // --- 4. Seletores de Elementos da UI ---
+    // (Esta secção é idêntica à anterior)
     const statusIndicator = document.getElementById('status-indicator');
     const statusText = document.getElementById('status-text');
     const potenciaTotalValor = document.getElementById('potencia-total-valor');
@@ -70,6 +81,7 @@
         document.getElementById('sim-live-potencia-3'),
         document.getElementById('sim-live-potencia-4')
     ];
+
     // --- 5. Variáveis de Estado e Gráfico ---
     let powerChart = null;
     let ultimoValorPotencia = null;
@@ -79,8 +91,8 @@
     // --- 6. Funções Principais ---
 
     function conectarFirebase() {
+        // ... (Esta função é idêntica à anterior)
         console.log("Conectando ao Firestore para dados ao vivo...");
-        
         db.collection('status_atual').doc('live')
             .onSnapshot((doc) => {
                 if (doc.exists) {
@@ -99,7 +111,7 @@
     }
 
     function handleGeraisData(data) {
-        // ... (Esta função é idêntica, pode mantê-la)
+        // ... (Esta função é idêntica à anterior)
         if (potenciaTotalValor) potenciaTotalValor.textContent = data.potencia_total.toFixed(0);
         if (tensaoRedeValor) tensaoRedeValor.textContent = data.tensao.toFixed(1);
         const potenciaEmKW = data.potencia_total / 1000.0;
@@ -119,9 +131,10 @@
     }
     
     function handleRelesData(relesData) {
-        // ... (Esta função é idêntica, pode mantê-la)
         if (!Array.isArray(relesData)) return;
+
         relesData.forEach(rele => {
+            // ... (A lógica de status, consumo, etc., é idêntica) ...
             const releIndex = rele.rele - 1; 
             const statusBadge = document.getElementById(`status-rele-${rele.rele}`);
             const consumoValor = document.getElementById(`consumo-rele-${rele.rele}`);
@@ -154,29 +167,31 @@
             if (releIndex < simLivePotencia.length && simLivePotencia[releIndex]) {
                 simLivePotencia[releIndex].textContent = rele.consumo.toFixed(0);
             }
-            
-            // --- ESTA LÓGICA É O PROBLEMA ---
-            // A correção de `toggle.disabled = false;` está AQUI.
-            // Mas esta função SÓ RODA se o dado no Firebase MUDAR.
-            // Se o hardware está offline, o dado não muda e o botão fica travado.
+
+            // --- (NOVA) LÓGICA DE PERMISSÃO ---
             if (toggle) {
                 toggle.removeEventListener('change', handleToggleChange);
                 toggle.checked = (rele.status === 'ON');
-                toggle.disabled = false; // A correção original
-                toggle.addEventListener('change', handleToggleChange);
+                
+                if (IS_GUEST_MODE) {
+                    // Modo Visitante: Apenas desative o botão
+                    toggle.disabled = true;
+                } else {
+                    // Modo Admin: Reative o botão e adicione o listener
+                    toggle.disabled = false; 
+                    toggle.addEventListener('change', handleToggleChange);
+                }
             }
+            // --- FIM DA LÓGICA DE PERMISSÃO ---
         });
     }
 
-    // --- ESTA É A NOVA FUNÇÃO CORRIGIDA ---
     function handleToggleChange(event) {
+        // (Esta função é idêntica à v3, com o setTimeout)
         const releIndex = event.target.dataset.releIndex;
         const newState = event.target.checked ? 'ON' : 'OFF';
-        
-        // Salva o elemento do toggle
         const toggleElement = event.target;
         
-        // Desativa o toggle IMEDIATAMENTE
         toggleElement.disabled = true; 
 
         console.log(`Enviando comando para Relé ${releIndex}: ${newState}`);
@@ -187,25 +202,19 @@
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         })
         .then(() => {
-            // (NOVA LÓGICA)
-            // O comando foi enviado ao Firebase com sucesso.
-            // Agora, vamos reativar o botão após 2 segundos,
-            // quer o hardware responda ou não.
-            // Isto previne o botão de ficar travado se a maquete estiver offline.
             setTimeout(() => {
                 toggleElement.disabled = false;
-            }, 2000); // 2 segundos (2000ms) de "cooldown"
+            }, 2000); 
         })
         .catch((error) => {
             console.error("Erro ao enviar comando: ", error);
-            // Se o envio ao Firebase FALHAR, reverte e reativa imediatamente.
             toggleElement.checked = !toggleElement.checked;
             toggleElement.disabled = false;
         });
     }
     
     function carregarConfiguracoes() {
-        // ... (Esta função é idêntica, pode mantê-la)
+        // ... (Esta função é idêntica à anterior)
         const tarifaSalva = localStorage.getItem('tarifaKWh');
         const limiteSalvo = localStorage.getItem('limiteSobrecargaW');
         const nomesSalvos = localStorage.getItem('nomesCargas');
@@ -224,7 +233,7 @@
     }
 
     function salvarConfiguracoes() {
-        // ... (Esta função é idêntica, pode mantê-la)
+        // ... (Esta função é idêntica à anterior)
         console.log("Salvando configurações...");
         tarifaKWh = parseFloat(configTarifaKwh.value) || TARIFA_PADRAO_KWH;
         limiteSobrecargaW = parseFloat(configLimiteW.value) || LIMITE_SOBRECARGA_W_PADRAO;
@@ -335,7 +344,14 @@
     function inicializarToggles() {
         const toggles = document.querySelectorAll('#page-realtime .toggle');
         toggles.forEach(toggle => {
-            toggle.addEventListener('change', handleToggleChange);
+            // --- (NOVA) LÓGICA DE PERMISSÃO ---
+            if (IS_GUEST_MODE) {
+                // Se for visitante, apenas desativa o botão
+                toggle.disabled = true;
+            } else {
+                // Se for admin, adiciona o listener
+                toggle.addEventListener('change', handleToggleChange);
+            }
         });
     }
 
