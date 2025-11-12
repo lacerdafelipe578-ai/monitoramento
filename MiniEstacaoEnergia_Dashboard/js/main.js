@@ -2,20 +2,43 @@
  * js/main.js
  *
  * Controlador Principal de Navegação (SPA) E Menu Mobile.
+ * (v2 - Adiciona lógica de Modo Visitante)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+
+    // --- (NOVO) LÓGICA DE MODO VISITANTE ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const IS_GUEST_MODE = urlParams.get('mode') === 'guest';
+
+    if (IS_GUEST_MODE) {
+        console.warn("Modo Visitante ATIVADO. Controlos e Configurações escondidos.");
+        
+        // 1. Esconder o link da aba "Configurações"
+        const linkConfig = document.querySelector('.nav-link[data-page="page-configuracoes"]');
+        if (linkConfig) {
+            linkConfig.classList.add('hidden');
+        }
+        
+        // 2. Esconder a secção de controlo de cargas (na aba Tempo Real)
+        const secaoControle = document.getElementById('secao-controle-cargas');
+        if (secaoControle) {
+            secaoControle.classList.add('hidden');
+        }
+    }
+    // --- FIM DA LÓGICA DE VISITANTE ---
+
 
     // --- 1. Seletores da Navegação ---
     const navLinks = document.querySelectorAll('.nav-link');
     const pages = document.querySelectorAll('.page-content');
 
-    // --- 2. (NOVO) Seletores do Menu Mobile ---
+    // --- 2. Seletores do Menu Mobile ---
     const sidebar = document.getElementById('sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     const btnMenuMobile = document.getElementById('btn-menu-mobile');
 
-    // --- 3. Função para mostrar/esconder a aba (igual a antes) ---
+    // --- 3. Função para mostrar/esconder a aba ---
     function showPage(pageId) {
         pages.forEach(page => {
             page.classList.add('hidden');
@@ -26,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 4. (NOVO) Funções para Abrir/Fechar o Menu Mobile ---
+    // --- 4. Funções para Abrir/Fechar o Menu Mobile ---
     function openMobileMenu() {
         if (sidebar) sidebar.classList.remove('-translate-x-full');
         if (backdrop) backdrop.classList.remove('hidden');
@@ -51,17 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const pageIdToShow = link.getAttribute('data-page');
             showPage(pageIdToShow);
             
-            // (NOVO) Fecha o menu mobile se estiver aberto
+            // Fecha o menu mobile se estiver aberto
             closeMobileMenu(); 
         });
     });
 
-    // (NOVO) Abrir menu com o botão hambúrguer
+    // Abrir menu com o botão hambúrguer
     if (btnMenuMobile) {
         btnMenuMobile.addEventListener('click', openMobileMenu);
     }
 
-    // (NOVO) Fechar menu clicando no fundo escuro (backdrop)
+    // Fechar menu clicando no fundo escuro (backdrop)
     if (backdrop) {
         backdrop.addEventListener('click', closeMobileMenu);
     }
